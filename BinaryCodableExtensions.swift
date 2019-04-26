@@ -3,7 +3,7 @@
 import Foundation
 
 
-extension Array: BinaryCodable {
+extension Array where Element: BinaryDecodable {
     public func binaryEncode(to encoder: BinaryEncoder) throws {
         guard Element.self is Encodable.Type else {
             throw BinaryEncoder.Error.typeNotConformingToEncodable(Element.self)
@@ -15,12 +15,13 @@ extension Array: BinaryCodable {
         }
     }
     
-    public init(fromBinary decoder: BinaryDecoder) throws {
+    public init(from decoder: Decoder) throws {
         guard let binaryElement = Element.self as? Decodable.Type else {
             throw BinaryDecoder.Error.typeNotConformingToDecodable(Element.self)
         }
         
-        let count = try decoder.decode(Int.self)
+        let binaryDecoder = decoder as! BinaryDecoder
+        let count = try binaryDecoder.decode(Int.self)
         self.init()
         self.reserveCapacity(count)
         for _ in 0 ..< count {
@@ -36,7 +37,7 @@ extension String: BinaryCodable {
     }
     
     public init(fromBinary decoder: BinaryDecoder) throws {
-        let utf8: [UInt8] = try Array(fromBinary: decoder)
+        let utf8: [UInt8] = try Array(from: decoder)
         if let str = String(bytes: utf8, encoding: .utf8) {
             self = str
         } else {
@@ -74,3 +75,24 @@ extension UInt32: BinaryCodable {}
 extension Int64: BinaryCodable {}
 extension UInt64: BinaryCodable {}
 
+extension Data: BinaryEncodable {
+    public func binaryEncode(to encoder: BinaryEncoder) {
+        let array = [UInt8](self)
+        try! array.binaryEncode(to: encoder)
+        // TODO: faster
+//        try! encoder.encode(self.count)
+//        encoder.appendBytes(of: self)
+    }
+}
+
+extension Data: BinaryDecodable {
+    public init(fromBinary binaryDecoder: BinaryDecoder) throws {
+        let size: Int = try! binaryDecoder.decode(Int.self)
+        
+        let pointer = UnsafeMutablePointer<UInt8>.allocate(capacity: size)
+        try binaryDecoder.read(size, into: pointer)
+        self.init(bytesNoCopy: pointer, count: size, deallocator: .custom({ (ptr, s) in
+            ptr.deallocate()
+        }))
+    }
+}

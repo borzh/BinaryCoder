@@ -128,10 +128,11 @@ public extension BinaryDecoder {
     func read<T>(into: inout T) throws {
         try read(MemoryLayout<T>.size, into: &into)
     }
+
 }
 
 /// Internal methods for decoding raw data.
-private extension BinaryDecoder {
+extension BinaryDecoder {
     /// Read the given number of bytes into the given pointer, advancing the cursor
     /// appropriately.
     func read(_ byteCount: Int, into: UnsafeMutableRawPointer) throws {
